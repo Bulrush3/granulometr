@@ -17,7 +17,8 @@ class Camera:
         self.frame_count = 0
         self.frames: List[Any] = []
         self.every_nth = 20
-        self.exposure_time = 4000.0
+        self.exposure_time = 500.0
+        self.threshold = 127
         # self.queue_frame
 
     def get_current_frame(
@@ -35,10 +36,23 @@ class Camera:
                 return frame
 
     def set_exposure_time(
-            self: 'Camera'
-    ):
-        pass
+            self: 'Camera',
+            threshold,
+            brightness, 
+            nodes
+    ):  
+        if brightness < threshold:
+            nodes['ExposureTime'].value += 8
+            print("ExposureTime:", nodes['ExposureTime'].value)
+            print("Average brightness:", brightness)
+            time.sleep(0.1)
 
+        elif brightness > threshold:
+            nodes['ExposureTime'].value -= 8
+            print("ExposureTime:", nodes['ExposureTime'].value)
+            print("Average brightness:", brightness)
+            time.sleep(0.1)
+        
     def create_devices_with_tries(self:  'Camera'):
         '''
         This function waits for the user to connect a device before raising
@@ -73,7 +87,7 @@ class Camera:
 
         nodes['Width'].value = 1280
         nodes['Height'].value = 720
-        nodes['PixelFormat'].value = 'RGB12'
+        nodes['PixelFormat'].value = 'BGR8'
 
         num_channels = 3
 
@@ -132,6 +146,7 @@ class Camera:
 
         self.configure_exposure_acquire_images(device, nodes, initial_vals)
         
+        threshold = 127.0
 
         with device.start_stream():
             """
@@ -151,30 +166,48 @@ class Camera:
                 array = (ctypes.c_ubyte * num_channels * item.width * item.height).from_address(ctypes.addressof(item.pbytes))
 
                 npndarray = np.ndarray(buffer=array, dtype=np.uint8, shape=(item.height, item.width, buffer_bytes_per_pixel))
+
+                brightness = np.average(npndarray)
+
+                # предполагается что в момент включения - камера смотрит на серую карту и 
+                # запускается метод выставления оптимального времени экспозиции
+                # для более точной настройки регулируется баланс серого 
+
+                while abs(brightness - threshold) > 5:
+                    self.set_exposure_time(threshold, brightness, nodes)
+                    break
+                while (abs(brightness - threshold) < 5) and (abs(brightness - threshold) > 2.5):
+                    if brightness > threshold:
+                        npndarray -= 1
+                        print('Изменено средняя яркость', brightness)
+                    elif brightness < threshold:
+                        npndarray += 1
+                        print('Изменено средняя яркость', brightness)
+                    break
                 
+                # if 10 < len(self.frames):
+                #     self.frames.pop(0)
+                #     print(self.frames)
 
-                if 10 < len(self.frames):
-                    self.frames.pop(0)
-                    print(self.frames)
-
-                self.frames.append(npndarray)
+                # self.frames.append(npndarray)
                 
                 # frame_count += 1
                 # if frame_count % every_nth == 0: 
                 #     cv2.imwrite(f"images\image{frame_count}.jpeg", npndarray)
+                # npndarray = cv2.cvtColor(npndarray, cv2.COLOR_BGR2GRAY)
 
                 cv2.imshow('Lucid', npndarray)
+                # print(np.average(npndarray))
+                # print(npndarray[0, 0])
                 BufferFactory.destroy(item)
-
                 # prev_frame_time = curr_frame_time
-
                 """
                 Break if esc key is pressed
                 """
                 key = cv2.waitKey(1)
                 if key == 27:
                     break
-                
+                print(brightness)
             device.stop_stream()
             cv2.destroyAllWindows()
         
