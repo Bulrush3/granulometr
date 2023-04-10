@@ -3,9 +3,7 @@ import ctypes
 import numpy as np
 from arena_api.system import system
 from arena_api.buffer import *
-# from multiprocessing import Queue, Process
-import threading
-import queue
+from multiprocessing import Queue, Process
 import cv2
 
 '''
@@ -122,21 +120,16 @@ def example_entry_point():
 	devices = create_device_with_tries()  
 	device = devices[0]
 	num_channels = setup(device)
-	q = queue.Queue()
-	putting_process = threading.Thread(target=get_multiple_images, args=(device, num_channels, q, ))
+
+	# get_multiple_images(device, num_channels)
+	queue = Queue()
+	putting_process = Process(target=get_multiple_images,
+	 									args=(device, num_channels, queue, ))
 	putting_process.start()
+	# ERROR: ctypes objects containing pointers cannot be pickled
+
 	putting_process.join()
 	
-	# get_multiple_images(device, num_channels)
-	# putting_process = Process(target=get_multiple_images,
-	#  									args=(device, num_channels, queue, ))
-	# putting_process.start()
-	# getting_processing_process = Process(target=save_image_buffers,
-	# 			                        args=(device, queue))
-	# getting_processing_process.start()
-
-	# putting_process.join()
-	# getting_processing_process.join()
 
 
 
