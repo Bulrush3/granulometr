@@ -87,7 +87,7 @@ def get_images(device, num_channels, q):
 			array = (ctypes.c_ubyte * num_channels * item.width * item.height).from_address(ctypes.addressof(item.pbytes))
 			
 			npndarray = np.ndarray(buffer=array, dtype=np.uint8, shape=(item.height, item.width, buffer_bytes_per_pixel))
-			npndarray = process_frame(npndarray)
+			# npndarray = process_frame(npndarray)
 			
 			cv2.imshow('Processed Frame', npndarray)
 
@@ -95,6 +95,7 @@ def get_images(device, num_channels, q):
 			
 			# добавляем кадр в очередь
 			q.put(npndarray)
+			# print(q.qsize())
 			key = cv2.waitKey(1)
 			if key == 27:
 				break
@@ -109,12 +110,17 @@ def get_images(device, num_channels, q):
 def save_image_buffers(q):
 	
 	while True:
-		if not q.empty():
-			image = q.get()
-			processed_frame = process_frame(image)
-			cv2.imshow('Processed Frame', processed_frame)
-		if cv2.waitKey(1) & 0xFF == ord('q'):
-			break
+		print('fhjf')
+		image = q.get()
+		print(type(image))
+		# print(image.shape)
+		g = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+		print(g.shape)
+		# processed_frame = process_frame(image)
+		# cv2.imshow('Processed Frame', processed_frame)
+		# cv2.waitKey(1)
+		# if cv2.waitKey(1) & 0xFF == ord('q'):
+		# 	break
 
 
 def example_entry_point():
@@ -126,7 +132,8 @@ def example_entry_point():
 	putting_thread = threading.Thread(target=get_images,
 				    					 args=(device, num_channels, q, ))
 	putting_thread.start()
-	putting_thread.join()
+
+	# putting_thread.join()
 	
 	# get_multiple_images(device, num_channels)
 
@@ -134,7 +141,11 @@ def example_entry_point():
 				                        args=(q,))
 	getting_processing_thread.start()
 
-	getting_processing_thread.join()
+	# while True:
+	# 	img = q.get()
+	# 	# gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+	# 	cv2.imshow('gray', img)
+	# 	cv2.waitKey(1)
 
 
 

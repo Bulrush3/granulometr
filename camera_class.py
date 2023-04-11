@@ -17,7 +17,7 @@ class Camera:
         self.frame_count = 0
         self.frames: List[Any] = []
         self.every_nth = 20
-        self.exposure_time = 500.0
+        self.exposure_time = 50000.0
         self.threshold = 127
         # self.queue_frame
 
@@ -42,16 +42,16 @@ class Camera:
             nodes
     ):  
         if brightness < threshold:
-            nodes['ExposureTime'].value += 8
+            nodes['ExposureTime'].value += 100
             print("ExposureTime:", nodes['ExposureTime'].value)
             print("Average brightness:", brightness)
-            time.sleep(0.1)
+
 
         elif brightness > threshold:
-            nodes['ExposureTime'].value -= 8
+            nodes['ExposureTime'].value -= 100
             print("ExposureTime:", nodes['ExposureTime'].value)
             print("Average brightness:", brightness)
-            time.sleep(0.1)
+
         
     def create_devices_with_tries(self:  'Camera'):
         '''
@@ -133,6 +133,33 @@ class Camera:
             
         print(f"Set expsoure time to {nodes['ExposureTime'].value}")
     
+    # def get_images(device, num_channels, q):
+    #     with device.start_stream():
+    #         while True:
+                
+    #             buffer = device.get_buffer()
+                
+    #             item = BufferFactory.copy(buffer)
+    #             device.requeue_buffer(buffer)
+                
+    #             buffer_bytes_per_pixel = int(len(item.data)/(item.width * item.height))
+                
+    #             array = (ctypes.c_ubyte * num_channels * item.width * item.height).from_address(ctypes.addressof(item.pbytes))
+                
+    #             npndarray = np.ndarray(buffer=array, dtype=np.uint8, shape=(item.height, item.width, buffer_bytes_per_pixel))
+                
+    #             # cv2.imshow('Processed Frame', npndarray)
+
+    #             BufferFactory.destroy(item)
+                
+    #             # добавляем кадр в очередь
+    #             q.put(npndarray)
+    #             key = cv2.waitKey(1)
+    #             if key == 27:
+    #                 break
+    #         device.stop_stream()
+    #         cv2.destroyAllWindows()
+    #     system.destroy_device()
 
     def start_camera(self):
 
@@ -149,12 +176,8 @@ class Camera:
         threshold = 127.0
 
         with device.start_stream():
-            """
-            Infinitely fetch and display buffer data until esc is pressed
-            """
+
             while True:
-                # Used to display FPS on stream
-                # curr_frame_time = time.time()
 
                 buffer = device.get_buffer()
 
@@ -176,20 +199,18 @@ class Camera:
                 while abs(brightness - threshold) > 5:
                     self.set_exposure_time(threshold, brightness, nodes)
                     break
-                while (abs(brightness - threshold) < 5) and (abs(brightness - threshold) > 2.5):
+                while (abs(brightness - threshold) < 5):
                     if brightness > threshold:
                         npndarray -= 1
+                        brightness = np.average(npndarray)
                         print('Изменено средняя яркость', brightness)
                     elif brightness < threshold:
                         npndarray += 1
+                        brightness = np.average(npndarray)
                         print('Изменено средняя яркость', brightness)
+                    time.sleep(1)
                     break
                 
-                # if 10 < len(self.frames):
-                #     self.frames.pop(0)
-                #     print(self.frames)
-
-                # self.frames.append(npndarray)
                 
                 # frame_count += 1
                 # if frame_count % every_nth == 0: 
@@ -197,13 +218,9 @@ class Camera:
                 # npndarray = cv2.cvtColor(npndarray, cv2.COLOR_BGR2GRAY)
 
                 cv2.imshow('Lucid', npndarray)
-                # print(np.average(npndarray))
-                # print(npndarray[0, 0])
+
                 BufferFactory.destroy(item)
-                # prev_frame_time = curr_frame_time
-                """
-                Break if esc key is pressed
-                """
+
                 key = cv2.waitKey(1)
                 if key == 27:
                     break
@@ -213,12 +230,11 @@ class Camera:
         
         system.destroy_device()
 
-        
 
         
-
-print('\nWARNING:\nTHIS EXAMPLE MIGHT CHANGE THE DEVICE(S) SETTINGS!')
-print('\nExample started\n')
-lucid = Camera()
-lucid.start_camera()
-print('\nExample finished successfully')      
+if __name__ == '__main__':
+    print('\nWARNING:\nTHIS EXAMPLE MIGHT CHANGE THE DEVICE(S) SETTINGS!')
+    print('\nExample started\n')
+    lucid = Camera()
+    lucid.start_camera()
+    print('\nExample finished successfully')      
