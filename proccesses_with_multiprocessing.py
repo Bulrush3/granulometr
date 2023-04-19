@@ -5,7 +5,7 @@ from arena_api.system import system
 from arena_api.buffer import *
 from multiprocessing import Queue, Process
 import cv2
-
+import traceback
 '''
 Acquiring and Saving Images on Seperate Threads: Introduction
 	Saving images can sometimes create a bottleneck in the image acquisition
@@ -18,7 +18,7 @@ def create_device_with_tries():
 	'''
 	This function waits for the user to connect a device before raising
 		an exception
-	'''
+	'''+
 	tries = 0
 	tries_max = 6
 	sleep_time_secs = 10
@@ -70,64 +70,77 @@ def process_frame(image):
 	processed_frame = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 	return processed_frame
 
-def get_multiple_images(device, num_channels, queue):
-	
-	with device.start_stream():
-		while True:
-
-			buffer = device.get_buffer()
-
-			item = BufferFactory.copy(buffer)
-			device.requeue_buffer(buffer)
-
-			buffer_bytes_per_pixel = int(len(item.data)/(item.width * item.height))
-			
-			array = (ctypes.c_ubyte * num_channels * item.width * item.height).from_address(ctypes.addressof(item.pbytes))
-			
-			npndarray = np.ndarray(buffer=array, dtype=np.uint8, shape=(item.height, item.width, buffer_bytes_per_pixel))
-			# npndarray = process_frame(npndarray)
-			
-			cv2.imshow('Processed Frame', npndarray)
-
-			BufferFactory.destroy(item)
-			
-			# добавляем кадр в очередь
-			queue.put(npndarray)
-			key = cv2.waitKey(1)
-			if key == 27:
-				break
-		device.stop_stream()
-		cv2.destroyAllWindows()
-	system.destroy_device()
-
-	#         print(f'Stream stopped')
-
-
-
-# def save_image_buffers(queue):
-	
-# 	while True:
-# 		if not queue.empty():
-# 			image = queue.get()
-# 			processed_frame = process_frame(image)
-# 			cv2.imshow('Processed Frame', processed_frame)
-# 		if cv2.waitKey(1) & 0xFF == ord('q'):
-# 			break
-
-
-def example_entry_point():
-
+def get_multiple_images(queue):
 	devices = create_device_with_tries()  
 	device = devices[0]
 	num_channels = setup(device)
+	try:
+		with device.start_stream():
+			while True:
+				buffer = device.get_buffer()
 
-	# get_multiple_images(device, num_channels)
+				item = BufferFactory.copy(buffer)
+				device.requeue_buffer(buffer)
+
+				buffer_bytes_per_pixel = int(len(item.data)/(item.width * item.height))
+				
+				array = (ctypes.c_ubyte * num_channels * item.width * item.height).from_address(ctypes.addressof(item.pbytes))
+				
+				npndarray = np.ndarray(buffer=array, dtype=np.uint8, shape=(item.height, item.width, buffer_bytes_per_pixel))
+				# npndarray = process_frame(npndarray)
+				# cv2.imshow('Lucid', npndarray)
+				queue.put(npndarray.copy())
+				BufferFactory.destroy(item)
+				
+				# добавляем кадр в очередь
+				# 
+				# key = cv2.waitKey(1)
+				# if key == 27:
+				# 	break
+	except:
+		traceback.print_exc()	
+	# device.stop_stream()
+	# system.destroy_device()
+
+	print(f'Stream stopped')
+
+
+
+def save_image_buffers(queue, i):
+	
+	while True:
+		if not queue.empty():
+			image = queue.get()
+			processed_frame = process_frame(image)
+			cv2.imwrite(f'images/{i}_{int(time.time() * 1000)}.png', processed_frame)
+		# 	cv2.imshow('Processed Frame', processed_frame)
+		# if cv2.waitKey(1) & 0xFF == ord('q'):
+		# 	break
+
+
+def example_entry_point():
 	queue = Queue()
-	putting_process = Process(target=get_multiple_images,
-	 									args=(device, num_channels, queue, ))
+	# get_multiple_images(queue)
+	
+	putting_process = Process(
+		target=get_multiple_images,
+	 	args=(queue, )
+	)
 	putting_process.start()
-	# ERROR: ctypes objects containing pointers cannot be pickled
 
+	for i in range(2):
+		putting_process = Process(
+			target=save_image_buffers,
+			args=(queue, i,)
+		)
+		putting_process.start()
+
+	# ERROR: ctypes objects containing pointers cannot be pickled
+	while True:
+		frame = queue.get()
+		print(type(frame))
+		cv2.imshow('frame', frame)
+		cv2.waitKey(1)
 	putting_process.join()
 	
 
