@@ -17,7 +17,7 @@ class Camera:
         self.frame_count = 0
         self.frames: List[Any] = []
         self.every_nth = 20
-        self.exposure_time = 50000.0
+        self.exposure_time = 60000.0
         self.threshold = 127
         # self.queue_frame
 
@@ -42,13 +42,13 @@ class Camera:
             nodes
     ):  
         if brightness < threshold:
-            nodes['ExposureTime'].value += 100
+            nodes['ExposureTime'].value += 500
             print("ExposureTime:", nodes['ExposureTime'].value)
             print("Average brightness:", brightness)
 
 
         elif brightness > threshold:
-            nodes['ExposureTime'].value -= 100
+            nodes['ExposureTime'].value -= 500
             print("ExposureTime:", nodes['ExposureTime'].value)
             print("Average brightness:", brightness)
 
@@ -189,7 +189,6 @@ class Camera:
                 array = (ctypes.c_ubyte * num_channels * item.width * item.height).from_address(ctypes.addressof(item.pbytes))
 
                 npndarray = np.ndarray(buffer=array, dtype=np.uint8, shape=(item.height, item.width, buffer_bytes_per_pixel))
-
                 brightness = np.average(npndarray)
 
                 # предполагается что в момент включения - камера смотрит на серую карту и 
@@ -197,6 +196,7 @@ class Camera:
                 # для более точной настройки регулируется баланс серого 
 
                 while abs(brightness - threshold) > 5:
+                    cv2.putText(npndarray, str(nodes['ExposureTime'].value), (7, 70), cv2.FONT_HERSHEY_SIMPLEX, 2, (100, 255, 0), 3, cv2.LINE_AA)
                     self.set_exposure_time(threshold, brightness, nodes)
                     break
                 while (abs(brightness - threshold) < 5):
@@ -208,7 +208,8 @@ class Camera:
                         npndarray += 1
                         brightness = np.average(npndarray)
                         print('Изменено средняя яркость', brightness)
-                    time.sleep(1)
+                    cv2.putText(npndarray, 'The optimal exposure value is set', (7, 70), cv2.FONT_HERSHEY_SIMPLEX, 2, (100, 255, 0), 3, cv2.LINE_AA)
+                    time.sleep(0.3)
                     break
                 
                 
