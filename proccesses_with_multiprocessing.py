@@ -18,7 +18,7 @@ def create_device_with_tries():
 	'''
 	This function waits for the user to connect a device before raising
 		an exception
-	'''+
+	'''
 	tries = 0
 	tries_max = 6
 	sleep_time_secs = 10
@@ -136,12 +136,12 @@ def example_entry_point():
 		putting_process.start()
 
 	# ERROR: ctypes objects containing pointers cannot be pickled
-	while True:
-		frame = queue.get()
-		print(type(frame))
-		cv2.imshow('frame', frame)
-		cv2.waitKey(1)
-	putting_process.join()
+	# while True:
+	# 	frame = queue.get()
+	# 	print(type(frame))
+	# 	cv2.imshow('frame', frame)
+	# 	cv2.waitKey(1)
+	# putting_process.join()
 	
 
 
