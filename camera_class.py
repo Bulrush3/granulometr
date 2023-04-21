@@ -18,8 +18,8 @@ class Camera:
         self.frame_count = 0
         self.frames: List[Any] = []
         self.every_nth = 5
-        self.exposure_time = 2000.0
-        self.threshold = 50
+        self.exposure_time = 10000.0
+        self.threshold = 127
         # self.queue_frame
 
     def get_current_frame(
@@ -178,19 +178,14 @@ class Camera:
             cv2.destroyAllWindows()
         system.destroy_device()
 
-    def save_image_buffers(self, queue, i):        
+    def save_image_buffers(self, queue,):        
 	    while True:
 		    if not queue.empty():
                         self.frame_count += 1
                         image = queue.get()
                         processed_frame = self.process_frame(image)
                         if self.frame_count % self.every_nth == 0:
-                            cv2.imwrite(f'images/{i}_{int(time.time() * 1000)}.png', processed_frame)
-                            key = cv2.waitKey(1)
-                            if key == 27:
-                                print('process2_ended')
-                                break
-    
+                            cv2.imwrite(f'images/{int(time.time() * 1000)}.png', processed_frame)
 
     def start_camera(self):
         queue = Queue()
@@ -202,12 +197,20 @@ class Camera:
         
         putting_process.start()
         
-        for i in range(2):
-            putting_process = Process(
-			    target=self.save_image_buffers,
-			    args=(queue, i,)
-		    )
-            putting_process.start()
+
+        getting_process = Process(
+            target=self.save_image_buffers,
+            args=(queue, )
+        )
+
+        getting_process.start()
+        
+        putting_process.join()
+        time.sleep(0.1)
+        if not putting_process.is_alive():
+            print('Putting process stopped, terminating getting p.')
+            getting_process.terminate()
+            print('process2_ended')
 
 
 if __name__ == '__main__':
