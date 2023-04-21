@@ -18,7 +18,7 @@ class Camera:
         self.frame_count = 0
         self.frames: List[Any] = []
         self.every_nth = 5
-        self.exposure_time = 10000.0
+        self.exposure_time = 20000.0
         self.threshold = 127
         # self.queue_frame
 
@@ -95,6 +95,8 @@ class Camera:
         nodes['Width'].value = 1936
         nodes['Height'].value = 1464
         nodes['PixelFormat'].value = 'BGR8'
+        # в разрешении 1280х720 - максимальное время экспозиции ~25к
+        # изображение/стрим в разрешении 1936х1464 сильно лагает
 
         num_channels = 3
 
@@ -113,9 +115,9 @@ class Camera:
 
         exposure_auto_initial = nodes['ExposureAuto'].value
         exposure_time_initial = nodes['ExposureTime'].value
-        return nodes, [exposure_auto_initial, exposure_time_initial]
+        return nodes
     
-    def configure_exposure_acquire_images(self, device, nodes, initial_vals):
+    def configure_exposure_acquire_images(self, nodes):
 
         
         print("Disable automatic exposure")
@@ -145,8 +147,8 @@ class Camera:
         devices = self.create_devices_with_tries()
         device = devices[0]
         num_channels, nodemap = self.setup(device)
-        nodes, initial_vals = self.store_initial(nodemap)
-        self.configure_exposure_acquire_images(device, nodes, initial_vals)   
+        nodes = self.store_initial(nodemap)
+        self.configure_exposure_acquire_images(nodes)   
         with device.start_stream():
             while True:
                         
@@ -184,6 +186,7 @@ class Camera:
                         self.frame_count += 1
                         image = queue.get()
                         processed_frame = self.process_frame(image)
+                        # записывается каждый n-ый кадр (здесь every_nth = 5) 
                         if self.frame_count % self.every_nth == 0:
                             cv2.imwrite(f'images/{int(time.time() * 1000)}.png', processed_frame)
 
